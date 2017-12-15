@@ -1,0 +1,31 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "oozAtDM7zyQcNmoi1MF0HNECXBk=",
+			"path": "github.com/gorilla/websocket",
+			"revision": "cdedf21e585dae942951e34d6defc3215b4280fa",
+			"revisionTime": "2017-12-10T03:53:53Z"
+		},
+		{
+			"checksumSHA1": "4nhXt+svWtwsjFzQMbBywcykuEo=",
+			"path": "github.com/shopspring/decimal",
+			"revision": "9ca7f51822d222ae4e246f070f9aad863599bd1a",
+			"revisionTime": "2017-11-08T22:52:54Z"
+		},
+		{
+			"checksumSHA1": "6z2KJGgNGxOaAr11iHMAXjx/3As=",
+			"path": "github.com/thebotguys/signalr",
+			"revision": "58078e12c98f4d4feb9ad2f992fde4db192de7a0",
+			"revisionTime": "2017-09-09T16:35:50Z"
+		},
+		{
+			"checksumSHA1": "ZxUWoSbC1ZEFX38YlJ2Ws1zdLn8=",
+			"path": "github.com/toorop/go-bittrex",
+			"revision": "8010de6d169057bcadead25db813697ef42ba1c8",
+			"revisionTime": "2017-12-08T07:50:53Z"
+		}
+	],
+	"rootPath": "github.com/sabhiram/trade-bot"
+}
