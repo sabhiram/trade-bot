@@ -1,14 +1,20 @@
 # trade-bot
 
-A simple bittrex trade bot to set slightly complex buy / sell orders
+A simple bittrex trade bot to set slightly complex buy / sell orders.
+
+Code is WIP and does not actually function as intended yet.
+
+## Disclaimer
+
+This is open source software.  Use at your own risk.
+
+Running this application requires you to get an `api key` and `secret` from bittrex.  If this was compromised it could lead to loss of all your coins.  Always use caution, paranoia and copious common sense when running this code.
 
 ## Install
 
 ```
 go get github.com/sabhiram/trade-bot
 ```
-
-TODO: Releases etc...
 
 ## Usage
 
@@ -44,3 +50,6 @@ The bittrex documentation explains how to acquire a `BITTREX_API_KEY` and `BITTR
 
 ```
 
+## Issues
+
+If you find this software useful, help out by filing issues or suggestions here: https://github.com/sabhiram/trade-bot/issues.
