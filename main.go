@@ -122,6 +122,21 @@ func main() {
 	}
 	client := bittrex.NewWithCustomHttpClient(cli.apiKey, cli.secret, h)
 
+	log.Printf("Fetching bittrex balances for account...\n")
+
+	balances, err := client.GetBalances()
+	fatalOnError(err)
+
+	log.Printf(" Currency |          Total         |         Available      \n")
+	log.Printf("==========|========================|========================\n")
+	for _, b := range balances {
+		bal, _ := b.Balance.Float64()
+		ava, _ := b.Available.Float64()
+		if bal > 0.0 {
+			log.Printf("% 9s | % 22f | % 22f\n", b.Currency, bal, ava)
+		}
+	}
+
 	for {
 		summary, err := client.GetMarketSummary(cli.pair)
 		fatalOnError(err)
