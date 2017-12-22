@@ -19,7 +19,7 @@ import (
 const usage = `trade-bot usage:
 
   $ BITTREX_API_KEY=<key> BITTREX_SECRET=<secret> \
-      trade-bot -pair <pair> [-refresh 5s] <command>
+      trade-bot [-refresh 5s] <command>
 
   All 'command's will trigger once a target is hit.  Each command will
   query the user for all required parameters and confirm before being
@@ -64,7 +64,6 @@ const version = `0.0.1`
 
 var (
 	cli = struct {
-		pair string   // currency trading pair
 		args []string // other command line args
 
 		refreshInterval time.Duration // conditions check refresh interval
@@ -72,6 +71,14 @@ var (
 		secret          string        // bittrex secret
 	}{}
 )
+
+////////////////////////////////////////////////////////////////////////////////
+
+type Balance struct {
+	Currency  string
+	Available float64
+	Total     float64
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -85,7 +92,7 @@ func usageErr(err error) {
 	if err != nil {
 		log.Fatalf("Usage Error: %s\n%s", err.Error(), usage)
 	} else {
-		log.Printf(usage)
+		fmt.Printf(usage)
 	}
 }
 
@@ -118,35 +125,72 @@ func main() {
 	}
 
 	h := &http.Client{
-		Timeout: time.Second * 10,
+		Timeout: time.Second * 20,
 	}
 	client := bittrex.NewWithCustomHttpClient(cli.apiKey, cli.secret, h)
 
-	log.Printf("Fetching bittrex balances for account...\n")
-
+	fmt.Printf("Fetching bittrex balances for account...\n")
 	balances, err := client.GetBalances()
 	fatalOnError(err)
 
-	log.Printf(" Currency |          Total         |         Available      \n")
-	log.Printf("==========|========================|========================\n")
+	bs := []*Balance{}
 	for _, b := range balances {
-		bal, _ := b.Balance.Float64()
 		ava, _ := b.Available.Float64()
+		bal, _ := b.Balance.Float64()
 		if bal > 0.0 {
-			log.Printf("% 9s | % 22f | % 22f\n", b.Currency, bal, ava)
+			bs = append(bs, &Balance{
+				Currency:  strings.ToUpper(b.Currency),
+				Available: ava,
+				Total:     bal,
+			})
 		}
 	}
 
-	for {
-		summary, err := client.GetMarketSummary(cli.pair)
+	fmt.Printf("Found the following balances:\n")
+	for i, bal := range bs {
+		fmt.Printf("% 3d. % 6s : %f available\n", i+1, bal.Currency, bal.Available)
+	}
+
+	input := getUserInput(`Which coin do you want to setup (ex: "PIVX"): `)
+	input = strings.ToUpper(input)
+
+	var (
+		target *Balance // chosen currency balance
+		btc    *Balance // BTC balance
+		usdt   *Balance // USDT balance
+	)
+	for _, bal := range bs {
+		switch bal.Currency {
+		case input:
+			target = bal
+		case "BTC":
+			btc = bal
+		case "USDT":
+			usdt = bal
+		}
+	}
+
+	if target == nil {
+		fmt.Printf("Currency (%s) not available.\n", input)
+		os.Exit(0)
+	}
+
+	if target.Available > 0.0 {
+		sourceCurrency := "BTC" // TODO: Fix this
+		market := fmt.Sprintf("%s-%s", sourceCurrency, input)
+
+		fmt.Printf("Querying market %s\n", market)
+		summary, err := client.GetMarketSummary(market)
 		fatalOnError(err)
 
 		if len(summary) > 0 {
-			lastValue := summary[0].Last.String()
-			log.Printf("Last value: %s\n", lastValue)
+			err := runCmd(cmd, input, &summary[0], target, usdt, btc)
+			fatalOnError(err)
+		} else {
+			fmt.Printf("Market summary does not exist for %s\n", market)
 		}
-
-		<-time.After(cli.refreshInterval)
+	} else {
+		fmt.Printf("Currency (%s) has no available balance\n", input)
 	}
 }
 
@@ -160,18 +204,11 @@ func init() {
 	cli.apiKey = getenvFatal("BITTREX_API_KEY")
 	cli.secret = getenvFatal("BITTREX_SECRET")
 
-	flag.StringVar(&cli.pair, "pair", "", "trading pair to look-up")
-	flag.StringVar(&cli.pair, "p", "", "trading pair to look-up (short)")
-
 	var refIntStr string
 	flag.StringVar(&refIntStr, "refresh", "5s", "refresh interval duration")
 	flag.StringVar(&refIntStr, "r", "5s", "refresh interval duration (short)")
 
 	flag.Parse()
-
-	if len(cli.pair) == 0 {
-		usageErr(fmt.Errorf("required argument -pair/-p missing"))
-	}
 
 	var err error
 	cli.refreshInterval, err = time.ParseDuration(refIntStr)
