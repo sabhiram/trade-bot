@@ -179,6 +179,7 @@ func main() {
 		sourceCurrency := "BTC" // TODO: Fix this
 		market := fmt.Sprintf("%s-%s", sourceCurrency, input)
 
+		// TODO: This moves into the runCmd
 		fmt.Printf("Querying market %s\n", market)
 		summary, err := client.GetMarketSummary(market)
 		fatalOnError(err)

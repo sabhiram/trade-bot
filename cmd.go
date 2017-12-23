@@ -2,22 +2,33 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"sync"
+	"text/template"
+	"time"
 
 	bittrex "github.com/toorop/go-bittrex"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type ExecFunc func(args map[string]interface{}) error
+type (
+	ExecFunc   func(t *Trade, args map[string]interface{}) error
+	UpdateFunc func(t *Trade, args map[string]interface{}) error
+)
+
+////////////////////////////////////////////////////////////////////////////////
 
 type Input struct {
 	prompt string
 	key    string
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 // Trade represents the required data to represent the appropriate
 // trading condition.  It contains a list of variables to fetch from
@@ -28,29 +39,98 @@ type Trade struct {
 	evaluate string
 	inputs   []*Input
 	execute  ExecFunc
+	update   UpdateFunc
+
+	Currency      string
+	TargetBalance *Balance
+	BTCBalance    *Balance
+	USDTBalance   *Balance
+}
+
+func (t *Trade) Setup(currency string, target, btc, usdt *Balance) error {
+	fmt.Printf("SETUP CALLED: %#v\n", currency)
+	t.Currency = currency
+	t.TargetBalance = target
+	t.BTCBalance = btc
+	t.USDTBalance = usdt
+	return nil
+}
+
+func (t *Trade) Evaluate(args map[string]interface{}) (string, error) {
+	fmt.Printf("EVAL CALLED: %#v\n", args)
+	tpl, err := template.New("eval").Parse(t.evaluate)
+	if err != nil {
+		return "error", err
+	}
+
+	var buf bytes.Buffer
+	if err := tpl.Execute(&buf, args); err != nil {
+		return "error", err
+	}
+
+	return buf.String(), nil
+}
+
+func (t *Trade) Run(currency string, args map[string]interface{}, refreshDuration time.Duration) error {
+	// Always update the trade before doing anything else. This will cause the
+	// default values to be setup correctly.  Update should also be called
+	// if the evaluate returns false for the next tick.
+	if err := t.update(t, args); err != nil {
+		return err
+	}
+
+	for {
+		res, err := t.Evaluate(args)
+		fatalOnError(err)
+
+		switch res {
+		case "true":
+			return t.execute(t, args)
+		case "false":
+			if err := t.update(t, args); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("invalid result %s", res)
+		}
+
+		<-time.After(refreshDuration)
+	}
+
+	return errors.New("unknown run error")
 }
 
 var tradeMap = map[string]*Trade{
 	"limit-sell": &Trade{
 		evaluate: `{{ ge .Current .Target }}`,
 		inputs: []*Input{
-			{prompt: "Sell Limit", key: "SellLimit"},
-			{prompt: "Sell Price", key: "SellPrice"},
+			{prompt: "Sell Limit (in BTC): ", key: "SellLimit"},
+			{prompt: "Sell Price (in BTC): ", key: "SellPrice"},
 		},
-		execute: func(args map[string]interface{}) error {
-			log.Printf("EXECUTE LIMIT ORDER\nGOT ARGS: %#v\n", args)
+		update: func(t *Trade, args map[string]interface{}) error {
+			args["FOO"] = "bar"
+			return nil
+		},
+		execute: func(t *Trade, args map[string]interface{}) error {
+			log.Printf("Trade exec called %#v\n", args)
 			return nil
 		},
 	},
 	"high-low": &Trade{
-		evaluate: `{{ }}`,
-		execute: func(args map[string]interface{}) error {
+		evaluate: `{{ ge 1 1 }}`,
+		update: func(t *Trade, args map[string]interface{}) error {
+			return nil
+		},
+		execute: func(t *Trade, args map[string]interface{}) error {
 			return nil
 		},
 	},
 	"stop-loss": &Trade{
-		evaluate: `{{ }}`,
-		execute: func(args map[string]interface{}) error {
+		evaluate: `{{ ge 1 1 }}`,
+		update: func(t *Trade, args map[string]interface{}) error {
+			return nil
+		},
+		execute: func(t *Trade, args map[string]interface{}) error {
 			return nil
 		},
 	},
@@ -107,6 +187,10 @@ Available BTC balance %f.
 		return fmt.Errorf("invalid command (%s) specified", cmd)
 	}
 
+	if err := trade.Setup(currency, target, btc, usdt); err != nil {
+		return err
+	}
+
 	// Iterate through the inputs as specified by the trade.
 	// Build a map and pass it to the exec function.
 	m := map[string]interface{}{}
@@ -114,12 +198,7 @@ Available BTC balance %f.
 		m[inp.key] = getUserInput(inp.prompt)
 	}
 
-	// TODO: Evaluate until the chain of conditions are true.
-	// Once this is the case we 'execute' the action for the
-	// trade.
-
-	// TODO: For now - blindly 'execute' the trade.
-	return trade.execute(m)
+	return trade.Run(currency, m, cli.refreshInterval)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
