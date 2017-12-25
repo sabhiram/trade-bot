@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Betterx</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="/asset/img/favicon.png" />
+
+    <!-- Web components needed for Polymer -->
+    <script src="/external/webcomponentsjs/webcomponents-lite.js"></script>
+    <link rel="stylesheet" href="/external/bootstrap/css/bootstrap.min.css" />
+
+    <link rel="import" href="/external/polymer/polymer.html" />
+    <link rel="import" href="/external/iron-meta/iron-meta.html" />
+    <link rel="import" href="/external/iron-location/iron-location.html" />
+    <link rel="import" href="/external/iron-location/iron-query-params.html" />
+    <link rel="import" href="/external/iron-ajax/iron-request.html" />
+
+    <link rel="import" href="/elements/tcpad-node-entry.html" />
+</head>
+
+<body>
+  <style is="custom-style" id="pageCSS">
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    body { padding-top: 70px; }
+    .theader {
+      font-size: 12pt;
+      height: 40px; line-height: 40px;
+      font-weight: bold;
+      border-bottom: 2px solid #888;
+      margin-bottom: 10px;
+    }
+    .trow {
+      font-size: 11pt;
+      height: 20px; line-height: 20px;
+      margin-bottom: 2px;
+    }
+    .navbar .container {
+      line-height: 40px;
+      font-size: 12pt;
+    }
+  </style>
+
+  <template is="dom-bind" id="tmain">
+    <!-- Grab URL query params -->
+    <iron-location query={{paramString}}>
+    </iron-location>
+
+    <!-- Parse them and grab an object -->
+    <iron-query-params
+        params-string="[[paramString]]"
+        params-object="{{params}}">
+    </iron-query-params>
+
+    <nav class="navbar navbar-default navbar-fixed-top">
+      <div class="container">Net [[params.id]]</div>
+    </nav>
+
+    <br><br>
+
+    <div class="container">
+      <h2>Change Display Count</h2>
+      <display-editor
+        ws="[[websocket]]"
+        netuuid="[[netuuid]]">
+      </display-editor>
+    </div>
+
+    <br><br>
+
+    <div class="container">
+      <h2>Relays</h2>
+      <div class="row theader">
+        <div class="col-xs-2">HardwareID</div>
+        <div class="col-xs-1">NodeID</div>
+        <div class="col-xs-3">Timestamp</div>
+        <div class="col-xs-2">Mode</div>
+        <div class="col-xs-2">Status</div>
+        <div class="col-xs-2">TOD</div>
+      </div>
+      <template is="dom-repeat" items="[[net.Nodes]]" filter="isRelay">
+        <relay-node-entry
+          ws="[[websocket]]"
+          node="[[item]]"
+          netuuid="[[netuuid]]">
+        </relay-node-entry>
+      </template>
+    </div>
+
+    <br><br>
+
+    <div class="container">
+      <h2>Pucks</h2>
+      <div class="row theader">
+        <div class="col-xs-2">HardwareID</div>
+        <div class="col-xs-1">NodeID</div>
+        <div class="col-xs-3">Timestamp</div>
+        <div class="col-xs-2">Mode</div>
+        <div class="col-xs-2">Status</div>
+        <div class="col-xs-2">TOD</div>
+      </div>
+      <template is="dom-repeat" items="[[net.Nodes]]" filter="isPuck">
+        <puck-node-entry
+          ws="[[websocket]]"
+          node="[[item]]"
+          netuuid="[[netuuid]]">
+        </puck-node-entry>
+      </template>
+    </div>
+
+  </template>
+
+  <script type="text/javascript">
+
+    function getWsHost() {
+      return ("https:" == document.location.protocol ? "wss://" : "ws://") + document.location.host + "/ws";
+    }
+
+    function sendWsString(ws, str) {
+      ws.send(str);
+    }
+
+    function sendObject(ws, obj) {
+      sendWsString(ws, JSON.stringify(obj));
+    }
+
+    window.addEventListener("WebComponentsReady", function(e) {
+      var request_promise = (document.createElement("iron-request"))
+        , id = tmain.params.id
+        , host = getWsHost()
+        , ws = new WebSocket(host)
+        ;
+
+      ////////////////////////////////////////////////////////////
+
+      /*
+       *  Setup the helper functions for the templater.
+       */
+      tmain.isPuck = function(node) {
+        return (node.NodeID >= 0x100 && node.NodeID <= 0x3ff);
+      }
+      tmain.isRelay = function(node) {
+        return (node.NodeID > 0x080 && node.NodeID <= 0x0ff);
+      }
+
+      tmain.websocket = ws;
+      tmain.netuuid = id;
+
+      ////////////////////////////////////////////////////////////
+
+      /*
+       *  Get the network information and basic node list for this network.
+       */
+      request_promise.send({
+        url:    "/api/net?id="+id,
+        method: "GET",
+      });
+      request_promise.completes.then(function(value) {
+        if (value.response == "") {
+          throw new NilResponseError();
+        }
+        var response = JSON.parse(value.response);
+        tmain.net = response;
+      });
+
+      ////////////////////////////////////////////////////////////
+
+      ws.onopen = function(evt) {
+        sendObject(ws, {Type: "SUBSCRIBE", NetUUID: id});
+      };
+
+      ws.onclose = function(evt) {
+        console.log("WS CLOSED!\n");
+      };
+
+      ws.onmessage = function(evt) {
+        var data = JSON.parse(evt.data)
+        console.log(data)
+        if ("Type" in data && data["Type"] == "STATE_CHANGE") {
+          for (var i = 0; i < tmain.net.Nodes.length; i++)
+          {
+            var node = tmain.net.Nodes[i];
+            if (node.HardwareID == data.HardwareID) {
+              tmain.set("net.Nodes." + i + ".AlgoState", data["State"]);
+            }
+          }
+        } else {
+          for (var i = 0; i < tmain.net.Nodes.length; i++)
+          {
+            var node = tmain.net.Nodes[i];
+            if (node.HardwareID == data.HardwareID) {
+              var as = tmain.net.Nodes[i]["AlgoState"] || undefined;
+              tmain.set("net.Nodes." + i, data);
+              tmain.set("net.Nodes." + i + ".AlgoState", as);
+            }
+          }
+        }
+
+      }.bind(this);
+
+      ws.onerror = function(evt) {
+        console.log("WS ERROR:", evt);
+      };
+
+      ////////////////////////////////////////////////////////////
+    });
+  </script>
+</body>
+</html>
+

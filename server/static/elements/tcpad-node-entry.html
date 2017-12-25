@@ -1,0 +1,276 @@
+<link rel="import" href="/admin/external/polymer/polymer.html">
+<link rel="import" href="/admin/external/underscore/underscore.html">
+<link rel="import" href="/admin/external/iron-input/iron-input.html">
+
+<dom-module id="display-editor">
+  <style>
+  </style>
+
+  <template>
+    <div class="row">
+      <div class="col-xs-2">NodeID:</div>
+      <div class="col-xs-2">
+        <input
+          is="iron-input"
+          value="{{nodeid::input}}">
+      </div>
+      <div class="col-xs-2 col-xs-offset-1">Count:</div>
+      <div class="col-xs-2">
+        <input
+          is="iron-input"
+          value="{{count::input}}">
+      </div>
+      <div class="col-xs-2 col-xs-offset-1" on-tap="countCmd">Set!</div>
+  </template>
+
+  <script>
+    Polymer({
+      is: "display-editor",
+
+      properties: {
+        ws: {
+          type: Object,
+          value: {},
+        },
+        netuuid: String,
+        nodeid: String,
+        count: String,
+      },
+
+      countCmd: function() {
+        if (this.ws != null) {
+          this.ws.send(JSON.stringify({
+            Type: "CMD_DISPLAY",
+            SubType: "COUNT",
+            NetUUID: this.netuuid,
+            NodeID: this.nodeid,
+            Value: this.count,
+          }));
+        }
+      },
+      ready: function() {},
+    });
+  </script>
+</dom-module>
+
+
+<dom-module id="relay-node-entry">
+  <style>
+    :host {
+      width: 100%;
+      height: 100%;
+    }
+    a {
+      text-decoration: none;
+    }
+  </style>
+
+  <template>
+    <div class="row trow">
+      <div class="col-xs-2">[[node.HardwareID]]</div>
+      <div class="col-xs-1">[[node.NodeID]]</div>
+      <div class="col-xs-3">[[node.Timestamp]]</div>
+      <div class="col-xs-1">[[node.ModeStr]]</div>
+      <div class="col-xs-1">[[node.StatusStr]] ([[node.Value]])</div>
+      <div class="col-xs-2">[[node.TOD]] ([[node.BootCount]])</div>
+      <div class="col-xs-2">
+        <button type="button" class="btn btn-default" on-tap="rebootCmd">
+          <span class="glyphicon glyphicon-off"></span>
+        </button>
+        <button type="button" class="btn btn-default" on-tap="toggleInfo">
+          <span class="glyphicon glyphicon-info-sign"></span>
+        </button>
+      </div>
+    </div>
+
+    <template is="dom-if" if="[[showInfo]]">
+      <div class="container infowindow">
+          Version: [[node.DeviceStatus.Version]] &nbsp;
+          Reboots: [[node.DeviceStatus.Reboots]] &nbsp;
+          Time: [[node.DeviceStatus.Time]] &nbsp;
+          Tod0: [[node.DeviceStatus.Tod0]] &nbsp;
+          VoltageMV: [[node.DeviceStatus.VoltageMV]] &nbsp;
+          CPU: [[node.DeviceStatus.CPUTemp]]
+      </div>
+    </template>
+
+    <hr>
+
+  </template>
+
+  <script>
+    Polymer({
+      is: "relay-node-entry",
+
+      properties: {
+        node: {
+          type: Object,
+          value: {},
+        },
+        ws: {
+          type: Object,
+          value: {},
+        },
+        netuuid: String,
+        showInfo: false,
+      },
+
+      rebootCmd: function() {
+        if (this.ws != null) {
+          this.ws.send(JSON.stringify({
+            Type: "CMD_REBOOT",
+            NetUUID: this.netuuid,
+            NodeID: this.node.NodeID
+          }));
+        }
+      },
+      toggleInfo: function() {
+        this.showInfo = !this.showInfo;
+      },
+
+      ready: function() {},
+    });
+  </script>
+</dom-module>
+
+<!--
+
+ -->
+<dom-module id="puck-node-entry">
+  <style>
+    :host {
+      width: 100%;
+      height: 100%;
+    }
+    a {
+      text-decoration: none;
+    }
+  </style>
+
+  <template>
+    <div class="row trow">
+      <div class="col-xs-2">[[node.HardwareID]]</div>
+      <div class="col-xs-1">[[node.NodeID]]</div>
+      <div class="col-xs-3">[[node.Timestamp]]</div>
+      <div class="col-xs-1">[[node.ModeStr]]</div>
+      <div class="col-xs-1">[[node.StatusStr]] ([[ _formatValue16(node.Value) ]])</div>
+      <div class="col-xs-2">[[node.TOD]] ([[node.BootCount]])</div>
+      <div class="col-xs-2">
+        <button type="button" class="btn btn-default" on-tap="rebootCmd">
+          <span class="glyphicon glyphicon-off"></span>
+        </button>
+        <button type="button" class="btn btn-default" on-tap="toggleInfo">
+          <span class="glyphicon glyphicon-info-sign"></span>
+        </button>
+      </div>
+    </div>
+
+    <template is="dom-if" if="[[showInfo]]">
+      <div class="container infowindow">
+          Version: [[node.DeviceStatus.Version]] &nbsp;
+          Reboots: [[node.DeviceStatus.Reboots]] &nbsp;
+          Time: [[node.DeviceStatus.Time]] &nbsp;
+          Tod0: [[node.DeviceStatus.Tod0]] &nbsp;
+          VoltageMV: [[node.DeviceStatus.VoltageMV]] &nbsp;
+          CPU: [[node.DeviceStatus.CPUTemp]]
+      </div>
+      <div class="container infowindow">
+          RunVersion: [[node.SusVersion.RunVersion]] &nbsp;
+          SusVersion: [[node.SusVersion.SusVersion]] &nbsp;
+          Percent: [[node.SusVersion.Percent]] &nbsp;
+      </div>
+      <div class="container infowindow">
+      </div>
+    </template>
+
+    <hr>
+
+  </template>
+
+  <script>
+    Polymer({
+      is: "puck-node-entry",
+
+      properties: {
+        // Socket for communication
+        ws: {
+          type: Object,
+          value: {},
+        },
+
+        // The network's UUID needed for all server messaging
+        netuuid: String,
+
+        // Control: expand / collapse info window
+        showInfo: false,
+
+        // Node metadata
+        node: {
+          type: Object,
+          value: {},
+          notify: true,
+        },
+
+        // Charting info, labels (X-axis) and data (Y-axis values)
+        labels: {
+          type: Array,
+          notify: true,
+        },
+        datasets: {
+          type: Array,
+          notify: true,
+        },
+      },
+
+      observers: [
+        "_onNodeChanged(node.*)"
+      ],
+
+      _formatValue16: function(v16) {
+        return (v16 / 65536.0);
+      },
+
+      _onNodeChanged: function(node) {
+        // The labels are the TOD values in all the dataset pairs (TODO: Verify that
+        // the server sorts these by TOD).
+        if (this.node.LevelLRU != null) {
+          var xAxis = _.map(this.node.LevelLRU.Items, function(item) {
+            return item.TOD;
+          });
+          var yAxis = _.map(this.node.LevelLRU.Items, function(item) {
+            return item.Value;
+          });
+
+          this.set("labels", xAxis);
+          this.set("datasets", [
+            {
+              label: "16-bit Level Info for Puck " + this.node.NodeID,
+              backgroundColor: "rgba(75,192,192,0.4)",
+              borderColor: "rgba(75,192,192,1)",
+              pointBorderColor: "rgba(75,192,192,1)",
+              pointBackgroundColor: "#fff",
+              pointHoverBackgroundColor: "rgba(75,192,192,1)",
+              pointHoverBorderColor: "rgba(220,220,220,1)",
+              data: yAxis,
+            },
+          ]);
+        }
+      },
+
+      rebootCmd: function() {
+        if (this.ws != null) {
+          this.ws.send(JSON.stringify({
+            Type: "CMD_REBOOT",
+            NetUUID: this.netuuid,
+            NodeID: this.node.NodeID
+          }));
+        }
+      },
+      toggleInfo: function() {
+        this.showInfo = !this.showInfo;
+      },
+
+      ready: function() {},
+    });
+  </script>
+</dom-module>

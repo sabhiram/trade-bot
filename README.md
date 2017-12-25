@@ -16,6 +16,23 @@ Running this application requires you to get an `api key` and `secret` from bitt
 go get github.com/sabhiram/trade-bot
 ```
 
+## Static files
+
+All files related to the web front-end will be `staticized` using the `esc` tool. To do so, install the `esc` tool globally on you development system:
+
+```
+go install github.com/mjibson/esc
+```
+
+Run `go generate` from the root directory of this project.
+
+```
+cd $GOPATH/src/github.com/sabhiram/trade-bot
+go generate ./server
+```
+
+Developer Note: If you fork this project and change the project's name or owner, you will need to adjust the hard-coded path in the `server/gen/verify.go` file.
+
 ## Usage
 
 The bittrex documentation explains how to acquire a `BITTREX_API_KEY` and `BITTREX_SECRET` from your settings panel (once logged in).  Once you have these you can use the `trade-bot` like so:

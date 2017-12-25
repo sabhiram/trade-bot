@@ -12,6 +12,8 @@ import (
 	"time"
 
 	bittrex "github.com/toorop/go-bittrex"
+
+	"github.com/sabhiram/trade-bot/types"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -42,12 +44,12 @@ type Trade struct {
 	update   UpdateFunc
 
 	Currency      string
-	TargetBalance *Balance
-	BTCBalance    *Balance
-	USDTBalance   *Balance
+	TargetBalance *types.Balance
+	BTCBalance    *types.Balance
+	USDTBalance   *types.Balance
 }
 
-func (t *Trade) Setup(currency string, target, btc, usdt *Balance) error {
+func (t *Trade) Setup(currency string, target, btc, usdt *types.Balance) error {
 	fmt.Printf("SETUP CALLED: %#v\n", currency)
 	t.Currency = currency
 	t.TargetBalance = target
@@ -174,7 +176,7 @@ Volume:     ` + s.Volume.String() + `
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func runCmd(cmd, currency string, market *bittrex.MarketSummary, target, btc, usdt *Balance) error {
+func runCmd(cmd, currency string, market *bittrex.MarketSummary, target, btc, usdt *types.Balance) error {
 	fmt.Printf(`
 Available %s balance %f.
 Available USDT balance %f.
@@ -201,4 +203,94 @@ Available BTC balance %f.
 	return trade.Run(currency, m, cli.refreshInterval)
 }
 
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+// cmd := strings.ToLower(cli.args[0])
+// switch cmd {
+// case "version":
+// 	fmt.Printf("%s\n", version)
+// 	return
+// case "usage", "help", "-h":
+// 	usageErr(nil)
+// 	return
+// case "limit-sell", "stop-loss", "high-low":
+// 	break
+// default:
+// 	usageErr(fmt.Errorf("%s is an invalid command", cmd))
+// 	return
+// }
+
+// h := &http.Client{
+// 	Timeout: time.Second * 20,
+// }
+// client := bittrex.NewWithCustomHttpClient(cli.apiKey, cli.secret, h)
+
+// fmt.Printf("Fetching bittrex balances for account...\n")
+// balances, err := client.GetBalances()
+// fatalOnError(err)
+
+// bs := []*types.Balance{}
+// for _, b := range balances {
+// 	ava, _ := b.Available.Float64()
+// 	bal, _ := b.Balance.Float64()
+// 	if bal > 0.0 {
+// 		bs = append(bs, &Balance{
+// 			Currency:  strings.ToUpper(b.Currency),
+// 			Available: ava,
+// 			Total:     bal,
+// 		})
+// 	}
+// }
+
+// fmt.Printf("Found the following balances:\n")
+// for i, bal := range bs {
+// 	fmt.Printf("% 3d. % 6s : %f available\n", i+1, bal.Currency, bal.Available)
+// }
+
+// input := getUserInput(`Which coin do you want to setup (ex: "PIVX"): `)
+// input = strings.ToUpper(input)
+
+// var (
+// 	target *types.Balance // chosen currency balance
+// 	btc    *types.Balance // BTC balance
+// 	usdt   *types.Balance // USDT balance
+// )
+// for _, bal := range bs {
+// 	switch bal.Currency {
+// 	case input:
+// 		target = bal
+// 	case "BTC":
+// 		btc = bal
+// 	case "USDT":
+// 		usdt = bal
+// 	}
+// }
+
+// if target == nil {
+// 	fmt.Printf("Currency (%s) not available.\n", input)
+// 	os.Exit(0)
+// }
+
+// if target.Available > 0.0 {
+// 	sourceCurrency := "BTC" // TODO: Fix this
+// 	market := fmt.Sprintf("%s-%s", sourceCurrency, input)
+
+// 	// TODO: This moves into the runCmd
+// 	fmt.Printf("Querying market %s\n", market)
+// 	summary, err := client.GetMarketSummary(market)
+// 	fatalOnError(err)
+
+// 	if len(summary) > 0 {
+// 		err := runCmd(cmd, input, &summary[0], target, usdt, btc)
+// 		fatalOnError(err)
+// 	} else {
+// 		fmt.Printf("Market summary does not exist for %s\n", market)
+// 	}
+// } else {
+// 	fmt.Printf("Currency (%s) has no available balance\n", input)
+// }
+
+////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
