@@ -102,3 +102,25 @@ func (d *DB) Dump() error {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+func (d *DB) UpdateBalances(bs []*types.Balance) error {
+	d.Lock()
+	d.db.Balances = bs
+	d.Unlock()
+
+	return d.Flush()
+}
+
+func (d *DB) GetBalances() ([]*types.Balance, error) {
+	bs := []*types.Balance{}
+
+	d.RLock()
+	for _, bal := range d.db.Balances {
+		bs = append(bs, bal)
+	}
+	d.RUnlock()
+
+	return bs, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
