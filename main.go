@@ -9,7 +9,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/sabhiram/trade-bot/app"
 	"github.com/sabhiram/trade-bot/server"
+	"github.com/sabhiram/trade-bot/types"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -50,15 +52,7 @@ const version = `0.0.1`
 
 ////////////////////////////////////////////////////////////////////////////////
 
-var (
-	cli = struct {
-		args []string // other command line args
-
-		refreshInterval time.Duration // conditions check refresh interval
-		apiKey          string        // bittrex api key
-		secret          string        // bittrex secret
-	}{}
-)
+var config types.Config
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -89,7 +83,12 @@ func getenvFatal(key string) string {
 ////////////////////////////////////////////////////////////////////////////////
 
 func main() {
-	s, err := server.New(":8100")
+	a, err := app.New(&config)
+	fatalOnError(err)
+
+	log.Printf("App created: %#v\n", a)
+
+	s, err := server.New(":8100", a)
 	fatalOnError(err)
 
 	s.Start()
@@ -102,24 +101,27 @@ func init() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(0)
 
-	cli.apiKey = getenvFatal("BITTREX_API_KEY")
-	cli.secret = getenvFatal("BITTREX_SECRET")
+	config.ApiKey = getenvFatal("BITTREX_API_KEY")
+	config.Secret = getenvFatal("BITTREX_SECRET")
 
 	var refIntStr string
 	flag.StringVar(&refIntStr, "refresh", "5s", "refresh interval duration")
 	flag.StringVar(&refIntStr, "r", "5s", "refresh interval duration (short)")
 
+	flag.StringVar(&config.DbPath, "dbpath", "db.json", "path to session database")
+	flag.StringVar(&config.DbPath, "d", "db.json", "path to session database (short)")
+
 	flag.Parse()
 
 	var err error
-	cli.refreshInterval, err = time.ParseDuration(refIntStr)
+	config.RefreshInterval, err = time.ParseDuration(refIntStr)
 	if err != nil {
 		usageErr(err)
 	}
 
-	cli.args = flag.Args()
-	if len(cli.args) == 0 {
-		cli.args = []string{"usage"}
+	config.Args = flag.Args()
+	if len(config.Args) == 0 {
+		config.Args = []string{"usage"}
 	}
 }
 

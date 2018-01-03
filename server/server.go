@@ -18,7 +18,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/sabhiram/trade-bot/server/hub"
+
+	"github.com/sabhiram/trade-bot/app"
+	"github.com/sabhiram/trade-bot/hub"
 	"github.com/sabhiram/trade-bot/server/static"
 )
 
@@ -40,11 +42,12 @@ var (
 type Server struct {
 	*http.Server
 
+	app   *app.App // app engine
 	wshub *hub.Hub // websocket hub
 }
 
 // New returns an instance of Server.
-func New(addr string) (*Server, error) {
+func New(addr string, a *app.App) (*Server, error) {
 	wsh, err := hub.New()
 	if err != nil {
 		return nil, err
@@ -55,6 +58,7 @@ func New(addr string) (*Server, error) {
 			Addr: addr,
 		},
 
+		app:   a,
 		wshub: wsh,
 	}
 
@@ -69,37 +73,6 @@ func (s *Server) Start() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-func (s *Server) wsHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		c, err := wsUpgrader.Upgrade(w, r, nil)
-		if err != nil {
-			fmt.Printf("wsHandler :: error :: %s\n", err.Error())
-			return
-		}
-		defer c.Close()
-
-		for {
-			mt, msg, err := c.ReadMessage()
-			if err != nil {
-				if _, ok := err.(*websocket.CloseError); !ok {
-					fmt.Printf("wsHandler :: unable to read ws :: %s\n", err.Error())
-				} else {
-					// todo: unsubscribe from hub here...
-					fmt.Printf("wsHandler :: connection closed\n")
-				}
-				break
-			}
-
-			switch mt {
-			case websocket.TextMessage:
-				fmt.Printf("wsHandler :: got message :: %s\n", string(msg))
-			default:
-				fmt.Printf("wsHandler :: unknown message type :: %d\n", mt)
-			}
-		}
-	}
-}
 
 func (s *Server) todoHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

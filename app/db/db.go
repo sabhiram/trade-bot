@@ -4,40 +4,19 @@ package db
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 	"sync"
-
-	"github.com/sabhiram/walley/types"
-	"github.com/sabhiram/walley/uuid"
 )
-
-////////////////////////////////////////////////////////////////////////////////
-
-var (
-	ErrInvalidCurrency = errors.New("invalid currency specified")
-)
-
-////////////////////////////////////////////////////////////////////////////////
-
-// Currencies keeps track of the list of track-able currencies.  This is a
-// non-mutable map of items and is NOT intended to be modified during runtime.
-var Currencies = map[string]*types.Currency{
-	"bitcoin":  types.NewCurrency("AA0B55A6-3F0B-422F-A6D6-7EFF68FC5E45", "Bitcoin", "BTC"),
-	"ethereum": types.NewCurrency("8C6E9D45-57A0-4B0E-BF5C-9DD1079625F4", "Ethereum", "ETH"),
-	"pivx":     types.NewCurrency("C0B6B568-7EDF-4510-A30F-5E3B8D794C0E", "PIVX", "PIVX"),
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 
 type DB struct {
 	*sync.RWMutex // Mutex to guard the database
 
-	dbPath string                               // Path to the db
-	m      map[uuid.UUID][]*types.CurrencyEntry // Map of entries
+	dbPath string                 // Path to the db
+	m      map[string]interface{} // Map of entries
 }
 
 // New returns a db instance from the JSON file specified by `dbPath`.  If the
@@ -48,7 +27,7 @@ func New(dbPath string) (*DB, error) {
 	d := &DB{
 		RWMutex: &sync.RWMutex{},
 		dbPath:  dbPath,
-		m:       map[uuid.UUID][]*types.CurrencyEntry{},
+		m:       map[string]interface{}{},
 	}
 
 	return d, d.Load()
@@ -99,26 +78,6 @@ func (d *DB) Dump() error {
 	}
 
 	return nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-func (d *DB) Add(currencyName, publicKey string) error {
-	cn := strings.ToLower(currencyName)
-	if c, ok := Currencies[cn]; ok {
-		id := uuid.New()
-		ne, err := types.NewEntry(c, publicKey)
-		if err != nil {
-			return err
-		}
-
-		d.Lock()
-		d.m[id] = []*types.CurrencyEntry{ne}
-		d.Unlock()
-		return nil
-	}
-
-	return ErrInvalidCurrency
 }
 
 ////////////////////////////////////////////////////////////////////////////////

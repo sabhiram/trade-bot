@@ -200,7 +200,7 @@ Available BTC balance %f.
 		m[inp.key] = getUserInput(inp.prompt)
 	}
 
-	return trade.Run(currency, m, cli.refreshInterval)
+	return trade.Run(currency, m, config.RefreshInterval)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
