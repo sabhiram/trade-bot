@@ -8,15 +8,27 @@ import (
 	"io/ioutil"
 	"os"
 	"sync"
+
+	"github.com/sabhiram/trade-bot/types"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// db is a JSON serialize-able structure.
+type db struct {
+	Balances []*types.Balance `json:"Balances"`
+	Sessions []*types.Session `json:"Sessions"`
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// DB is the externally visible db object with locks to guarantee sync
+// operations.
 type DB struct {
 	*sync.RWMutex // Mutex to guard the database
 
-	dbPath string                 // Path to the db
-	m      map[string]interface{} // Map of entries
+	dbPath string // Path to the db
+	db     *db    // Instance to internal db
 }
 
 // New returns a db instance from the JSON file specified by `dbPath`.  If the
@@ -26,8 +38,12 @@ type DB struct {
 func New(dbPath string) (*DB, error) {
 	d := &DB{
 		RWMutex: &sync.RWMutex{},
-		dbPath:  dbPath,
-		m:       map[string]interface{}{},
+
+		dbPath: dbPath,
+		db: &db{
+			Balances: []*types.Balance{},
+			Sessions: []*types.Session{},
+		},
 	}
 
 	return d, d.Load()
@@ -51,7 +67,7 @@ func (d *DB) Load() error {
 		return err
 	}
 
-	return json.Unmarshal(bs, &d.m)
+	return json.Unmarshal(bs, &d.db)
 }
 
 // Flush writes the database to the stored `dbPath`.
@@ -59,7 +75,7 @@ func (d *DB) Flush() error {
 	d.Lock()
 	defer d.Unlock()
 
-	bs, err := json.MarshalIndent(d.m, "", "  ")
+	bs, err := json.MarshalIndent(d.db, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -72,9 +88,14 @@ func (d *DB) Dump() error {
 	d.RLock()
 	defer d.RUnlock()
 
-	fmt.Printf("Dumping DB:\n")
-	for k, v := range d.m {
-		fmt.Printf("Found key: %#v with value: %#v\n", k, v)
+	fmt.Printf("Dumping Balances\n")
+	for _, bal := range d.db.Balances {
+		fmt.Printf("Found balance: %#v\n", bal)
+	}
+
+	fmt.Printf("Dumping Sessions\n")
+	for _, ses := range d.db.Sessions {
+		fmt.Printf("Found session: %#v\n", ses)
 	}
 
 	return nil
