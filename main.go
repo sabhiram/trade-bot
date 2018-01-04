@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sabhiram/trade-bot/app"
+	"github.com/sabhiram/trade-bot/hub"
 	"github.com/sabhiram/trade-bot/server"
 	"github.com/sabhiram/trade-bot/types"
 )
@@ -83,12 +84,25 @@ func getenvFatal(key string) string {
 ////////////////////////////////////////////////////////////////////////////////
 
 func main() {
-	a, err := app.New(&config)
+	h, err := hub.New()
 	fatalOnError(err)
+	go h.Run()
+
+	a, err := app.New(&config, h)
+	fatalOnError(err)
+
+	// debug - start
+	go func() {
+		for {
+			<-time.After(10 * time.Second)
+			a.UpdateBalances(true)
+		}
+	}()
+	// debug - end
 
 	log.Printf("App created: %#v\n", a)
 
-	s, err := server.New(":8100", a)
+	s, err := server.New(":8100", h, a)
 	fatalOnError(err)
 
 	s.Start()

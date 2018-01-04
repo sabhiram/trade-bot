@@ -21,6 +21,7 @@ import (
 
 	"github.com/sabhiram/trade-bot/app"
 	"github.com/sabhiram/trade-bot/hub"
+	"github.com/sabhiram/trade-bot/server/socket"
 	"github.com/sabhiram/trade-bot/server/static"
 )
 
@@ -42,24 +43,19 @@ var (
 type Server struct {
 	*http.Server
 
-	app   *app.App // app engine
-	wshub *hub.Hub // websocket hub
+	app *app.App // app engine
+	hub *hub.Hub // websocket hub
 }
 
 // New returns an instance of Server.
-func New(addr string, a *app.App) (*Server, error) {
-	wsh, err := hub.New()
-	if err != nil {
-		return nil, err
-	}
-
+func New(addr string, h *hub.Hub, a *app.App) (*Server, error) {
 	s := &Server{
 		Server: &http.Server{
 			Addr: addr,
 		},
 
-		app:   a,
-		wshub: wsh,
+		app: a,
+		hub: h,
 	}
 
 	return s, s.setupRoutes()
@@ -78,6 +74,26 @@ func (s *Server) todoHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("TODO handler hit!\n")
 		w.Write([]byte("TODO"))
+	}
+}
+
+func (s *Server) wsHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		c, err := wsUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			fmt.Printf("wsHandler :: error :: %s\n", err.Error())
+			return
+		}
+
+		sock := socket.New(c)
+
+		s.hub.RegisterSocket(sock)
+		defer func() {
+			s.hub.UnregisterSocket(sock)
+		}()
+
+		go sock.Read()
+		sock.Write()
 	}
 }
 

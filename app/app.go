@@ -10,6 +10,7 @@ import (
 	bittrex "github.com/toorop/go-bittrex"
 
 	"github.com/sabhiram/trade-bot/app/db"
+	"github.com/sabhiram/trade-bot/hub"
 	"github.com/sabhiram/trade-bot/types"
 )
 
@@ -19,12 +20,13 @@ import (
 // session.  The app instance will be used to issue new requests to the upstream
 // APIs and push state to various clients via open/subscribed websockets.
 type App struct {
-	config *types.Config    // app config
-	db     *db.DB           // local "database" of tracked session(s)
+	config *types.Config // app config
+	db     *db.DB        // local "database" of tracked session(s)
+	hub    *hub.Hub
 	client *bittrex.Bittrex // bittrex client
 }
 
-func New(config *types.Config) (*App, error) {
+func New(config *types.Config, h *hub.Hub) (*App, error) {
 	d, err := db.New(config.DbPath)
 	if err != nil {
 		return nil, err
@@ -33,6 +35,7 @@ func New(config *types.Config) (*App, error) {
 	app := &App{
 		config: config,
 		db:     d,
+		hub:    h,
 		client: bittrex.New(config.ApiKey, config.Secret),
 	}
 
@@ -75,8 +78,13 @@ func (a *App) UpdateBalances(broadcast bool) error {
 		return err
 	}
 
-	for _, b := range bal {
-		fmt.Printf("BALANCE: %#v\n", b)
+	if broadcast {
+		msg := ""
+		for _, b := range bal {
+			msg += fmt.Sprintf("BALANCE: %#v\n", b)
+		}
+		fmt.Printf("%s\n", msg)
+		a.hub.Broadcast([]byte(`{"A": 1, "B": [1,2,3], "C": {"A": 100}}`))
 	}
 
 	// Update clients.

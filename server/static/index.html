@@ -59,61 +59,14 @@
     </iron-query-params>
 
     <nav class="navbar navbar-default navbar-fixed-top">
-      <div class="container">Net [[params.id]]</div>
+      <div class="container">Betterex Trade-Bot</div>
     </nav>
-
     <br><br>
 
     <div class="container">
-      <h2>Change Display Count</h2>
-      <display-editor
-        ws="[[websocket]]"
-        netuuid="[[netuuid]]">
-      </display-editor>
+      <h2>Available Balances:</h2>
     </div>
-
     <br><br>
-
-    <div class="container">
-      <h2>Relays</h2>
-      <div class="row theader">
-        <div class="col-xs-2">HardwareID</div>
-        <div class="col-xs-1">NodeID</div>
-        <div class="col-xs-3">Timestamp</div>
-        <div class="col-xs-2">Mode</div>
-        <div class="col-xs-2">Status</div>
-        <div class="col-xs-2">TOD</div>
-      </div>
-      <template is="dom-repeat" items="[[net.Nodes]]" filter="isRelay">
-        <relay-node-entry
-          ws="[[websocket]]"
-          node="[[item]]"
-          netuuid="[[netuuid]]">
-        </relay-node-entry>
-      </template>
-    </div>
-
-    <br><br>
-
-    <div class="container">
-      <h2>Pucks</h2>
-      <div class="row theader">
-        <div class="col-xs-2">HardwareID</div>
-        <div class="col-xs-1">NodeID</div>
-        <div class="col-xs-3">Timestamp</div>
-        <div class="col-xs-2">Mode</div>
-        <div class="col-xs-2">Status</div>
-        <div class="col-xs-2">TOD</div>
-      </div>
-      <template is="dom-repeat" items="[[net.Nodes]]" filter="isPuck">
-        <puck-node-entry
-          ws="[[websocket]]"
-          node="[[item]]"
-          netuuid="[[netuuid]]">
-        </puck-node-entry>
-      </template>
-    </div>
-
   </template>
 
   <script type="text/javascript">
@@ -131,48 +84,18 @@
     }
 
     window.addEventListener("WebComponentsReady", function(e) {
-      var request_promise = (document.createElement("iron-request"))
-        , id = tmain.params.id
-        , host = getWsHost()
+      var host = getWsHost()
         , ws = new WebSocket(host)
         ;
 
       ////////////////////////////////////////////////////////////
 
-      /*
-       *  Setup the helper functions for the templater.
-       */
-      tmain.isPuck = function(node) {
-        return (node.NodeID >= 0x100 && node.NodeID <= 0x3ff);
-      }
-      tmain.isRelay = function(node) {
-        return (node.NodeID > 0x080 && node.NodeID <= 0x0ff);
-      }
-
       tmain.websocket = ws;
-      tmain.netuuid = id;
-
-      ////////////////////////////////////////////////////////////
-
-      /*
-       *  Get the network information and basic node list for this network.
-       */
-      request_promise.send({
-        url:    "/api/net?id="+id,
-        method: "GET",
-      });
-      request_promise.completes.then(function(value) {
-        if (value.response == "") {
-          throw new NilResponseError();
-        }
-        var response = JSON.parse(value.response);
-        tmain.net = response;
-      });
 
       ////////////////////////////////////////////////////////////
 
       ws.onopen = function(evt) {
-        sendObject(ws, {Type: "SUBSCRIBE", NetUUID: id});
+        sendObject(ws, {Type: "SUBSCRIBE"});
       };
 
       ws.onclose = function(evt) {
@@ -182,26 +105,6 @@
       ws.onmessage = function(evt) {
         var data = JSON.parse(evt.data)
         console.log(data)
-        if ("Type" in data && data["Type"] == "STATE_CHANGE") {
-          for (var i = 0; i < tmain.net.Nodes.length; i++)
-          {
-            var node = tmain.net.Nodes[i];
-            if (node.HardwareID == data.HardwareID) {
-              tmain.set("net.Nodes." + i + ".AlgoState", data["State"]);
-            }
-          }
-        } else {
-          for (var i = 0; i < tmain.net.Nodes.length; i++)
-          {
-            var node = tmain.net.Nodes[i];
-            if (node.HardwareID == data.HardwareID) {
-              var as = tmain.net.Nodes[i]["AlgoState"] || undefined;
-              tmain.set("net.Nodes." + i, data);
-              tmain.set("net.Nodes." + i + ".AlgoState", as);
-            }
-          }
-        }
-
       }.bind(this);
 
       ws.onerror = function(evt) {
