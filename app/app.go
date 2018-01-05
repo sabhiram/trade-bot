@@ -83,8 +83,15 @@ func (a *App) UpdateBalances(broadcast bool) error {
 		for _, b := range bal {
 			msg += fmt.Sprintf("BALANCE: %#v\n", b)
 		}
-		fmt.Printf("%s\n", msg)
-		a.hub.Broadcast([]byte(`{"A": 1, "B": [1,2,3], "C": {"A": 100}}`))
+
+		sm := types.NewSocketMessage("Balance", bal)
+
+		bs, err := sm.Marshal()
+		if err != nil {
+			return err
+		}
+
+		a.hub.Broadcast(bs)
 	}
 
 	// Update clients.
