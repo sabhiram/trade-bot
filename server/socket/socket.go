@@ -35,7 +35,6 @@ func (s *Socket) Read() {
 	})
 
 	for {
-		fmt.Printf("Waiting for read...\n")
 		mt, msg, err := s.conn.ReadMessage()
 		if err != nil {
 			if _, ok := err.(*websocket.CloseError); !ok {
@@ -64,7 +63,6 @@ func (s *Socket) Write() {
 	}()
 
 	for {
-		fmt.Printf("Waiting for write on sendCh or ticker...\n")
 		select {
 		case msg, ok := <-s.sendCh:
 			s.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))

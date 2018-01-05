@@ -45,26 +45,49 @@
       line-height: 40px;
       font-size: 12pt;
     }
+
+    #balance-header {
+      margin-top: 20px;
+      border-bottom: 2px solid black;
+      background: #eee;
+      font-size: 14pt;
+      padding: 5px;
+    }
+    .balance-item {
+      border-bottom: 1px dashed black;
+      font-size: 12pt; 
+      padding: 4px;
+    }
   </style>
 
   <template is="dom-bind" id="tmain">
-    <!-- Grab URL query params -->
     <iron-location query={{paramString}}>
     </iron-location>
 
-    <!-- Parse them and grab an object -->
     <iron-query-params
         params-string="[[paramString]]"
         params-object="{{params}}">
     </iron-query-params>
 
     <nav class="navbar navbar-default navbar-fixed-top">
-      <div class="container">Betterex Trade-Bot</div>
+      <div class="container">Betterx Trade-Bot</div>
     </nav>
     <br><br>
 
     <div class="container">
       <h2>Available Balances:</h2>
+      <div class="row" id="balance-header">
+        <div class="col-xs-4">Currency</div>
+        <div class="col-xs-4">Available</div>
+        <div class="col-xs-4">Total</div>
+      </div>
+      <template is="dom-repeat" items="[[balances]]">
+        <div class="row balance-item">
+          <div class="col-xs-4">[[item.Currency]]</div>
+          <div class="col-xs-4">[[item.Available]]</div>
+          <div class="col-xs-4">[[item.Total]]</div>
+        </div>
+      </template>
     </div>
     <br><br>
   </template>
@@ -91,6 +114,7 @@
       ////////////////////////////////////////////////////////////
 
       tmain.websocket = ws;
+      tmain.balances  = [];
 
       ////////////////////////////////////////////////////////////
 
@@ -103,8 +127,13 @@
       };
 
       ws.onmessage = function(evt) {
-        var data = JSON.parse(evt.data)
-        console.log(data)
+        var data = JSON.parse(evt.data);
+        if ("Type" in data && data["Type"] == "Balance") {
+          tmain.balances = data["Data"];
+          tmain.set("balances", data["Data"]);
+        } else {
+          console.log("unknown type", data["Type"]);
+        }
       }.bind(this);
 
       ws.onerror = function(evt) {

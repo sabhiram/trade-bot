@@ -91,17 +91,6 @@ func main() {
 	a, err := app.New(&config, h)
 	fatalOnError(err)
 
-	// debug - start
-	go func() {
-		for {
-			<-time.After(10 * time.Second)
-			a.UpdateBalances(true)
-		}
-	}()
-	// debug - end
-
-	log.Printf("App created: %#v\n", a)
-
 	s, err := server.New(":8100", h, a)
 	fatalOnError(err)
 

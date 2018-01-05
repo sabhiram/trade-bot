@@ -92,6 +92,9 @@ func (s *Server) wsHandler() http.HandlerFunc {
 			s.hub.UnregisterSocket(sock)
 		}()
 
+		// Send the current balance(s) to the client.
+		s.app.SendBalances(sock)
+
 		go sock.Read()
 		sock.Write()
 	}

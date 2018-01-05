@@ -4,13 +4,13 @@ package app
 ////////////////////////////////////////////////////////////////////////////////
 
 import (
-	"fmt"
 	"strings"
 
 	bittrex "github.com/toorop/go-bittrex"
 
 	"github.com/sabhiram/trade-bot/app/db"
 	"github.com/sabhiram/trade-bot/hub"
+	"github.com/sabhiram/trade-bot/server/socket"
 	"github.com/sabhiram/trade-bot/types"
 )
 
@@ -73,27 +73,43 @@ func (a *App) UpdateBalances(broadcast bool) error {
 		return err
 	}
 
+	// Update clients (if we need to broadcast).
+	if broadcast {
+		return a.BroadcastBalances()
+	}
+	return nil
+}
+
+// BroadcastBalances pushes the latest balance state to all connected clients.
+func (a *App) BroadcastBalances() error {
 	bal, err := a.db.GetBalances()
 	if err != nil {
 		return err
 	}
 
-	if broadcast {
-		msg := ""
-		for _, b := range bal {
-			msg += fmt.Sprintf("BALANCE: %#v\n", b)
-		}
-
-		sm := types.NewSocketMessage("Balance", bal)
-
-		bs, err := sm.Marshal()
-		if err != nil {
-			return err
-		}
-
-		a.hub.Broadcast(bs)
+	bs, err := types.NewSocketMessage("Balance", bal).Marshal()
+	if err != nil {
+		return err
 	}
 
-	// Update clients.
+	a.hub.Broadcast(bs)
 	return nil
 }
+
+// SendBalances pushes the latest balance state to the specified socket.
+func (a *App) SendBalances(sock *socket.Socket) error {
+	bal, err := a.db.GetBalances()
+	if err != nil {
+		return err
+	}
+
+	bs, err := types.NewSocketMessage("Balance", bal).Marshal()
+	if err != nil {
+		return err
+	}
+
+	sock.Send(bs)
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
